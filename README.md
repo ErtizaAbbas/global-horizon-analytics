@@ -1,8 +1,5 @@
 
-cd /d/python/Python/geoecon_project
 
-# Overwrite your README with advanced multi-country architectural details
-cat << 'EOF' > README.md
 # Global Horizon Analytics
 
 A scalable, verifiable data science model designed to evaluate macroeconomic health and simulate 10-year predictive trajectories. This platform integrates traditional economic indicators, demographic changes, and geopolitical risk constraints using machine learning.
