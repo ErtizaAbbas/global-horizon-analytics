@@ -92,7 +92,6 @@ if os.path.exists(processed_file):
             'health_score_lag1': lag1_health, 'working_age_pop_pct': working_pop, 'gov_debt_gdp_pct': debt_gdp
         }])
         
-        # FIXED: Added array subscript element lookup [0] to extract float scalar out of array mapping
         pred_score = float(model.predict(input_data)[0])
         future_preds.append({"year": yr, "predicted_score": pred_score})
         
@@ -194,4 +193,5 @@ if os.path.exists(processed_file):
     icon_col2.markdown("[💼 LinkedIn Portal Access](https://linkedin.com)")
     
     with st.form("user_feedback_form", clear_on_submit=True):
-
+        st.markdown("##### Leave a message, project inquiry, or suggestion for Ertiza Abbas:")
+        user_name = st.text_input("Your Name / Organization Name:")
