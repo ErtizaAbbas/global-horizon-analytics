@@ -55,6 +55,9 @@ if not os.path.exists(processed_file) and os.path.exists(raw_source_file):
             (df_clean['scaled_inflation'] * 0.15) + (df_clean['scaled_debt'] * 0.15)
         ) * 100
         df_clean.to_csv(processed_file, index=False)
+        
+        # FIXED: Forces page reload immediately to populate workspace metrics
+        st.rerun()
 
 # Main execution pathway continues smoothly if file exists or was repaired above
 if os.path.exists(processed_file):
@@ -192,6 +195,30 @@ if os.path.exists(processed_file):
     icon_col1.markdown("[🔗 GitHub Repository Profile](https://github.com)")
     icon_col2.markdown("[💼 LinkedIn Portal Access](https://linkedin.com)")
     
-    with st.form("user_feedback_form", clear_on_submit=True):
-        st.markdown("##### Leave a message, project inquiry, or suggestion for Ertiza Abbas:")
-        user_name = st.text_input("Your Name / Organization Name:")
+    st.markdown("##### Leave a message, project inquiry, or suggestion for Ertiza Abbas:")
+    
+    # We use explicit layout widgets instead of a strict form block to entirely eliminate indentation syntax breaks
+    user_name = st.text_input("Your Name / Organization Name:", key="u_name")
+    user_email = st.text_input("Your Contact Email Address:", key="u_email")
+    user_message = st.text_area("Your Analytical Inquiry or Feedback Notes:", key="u_msg")
+    transmit_btn = st.button("Transmit Message Securely")
+    
+    if transmit_btn:
+        if user_name and user_message:
+            feedback_file = "user_interaction_log.csv"
+            new_entry = pd.DataFrame([{"Name": user_name, "Email": user_email, "Message": user_message, "Country_Viewed": target_country}])
+            
+            if os.path.exists(feedback_file):
+                new_entry.to_csv(feedback_file, mode='a', header=False, index=False)
+            else:
+                new_entry.to_csv(feedback_file, index=False)
+                
+            st.success(f"Transmission successful! Thank you, {user_name}. Your inquiry has been logged programmatically. Ertiza Abbas will review your notes shortly.")
+        else:
+            st.error("[-] Transmission failed. Please supply both a Name and a Message text block before submission.")
+            
+    st.markdown("---")
+    st.markdown("<p style='text-align: center; color: gray;'>Global Horizon Analytics Framework | Developed by Ertiza Abbas</p>", unsafe_allow_html=True)
+else:
+    st.error("[-] Data file path mappings incorrect. Ensure data processing matrices exist on drive storage or check raw source tables.")
+
