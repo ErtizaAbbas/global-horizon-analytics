@@ -130,7 +130,7 @@ if os.path.exists(processed_file):
             'health_score_lag1': lag1_health, 'working_age_pop_pct': working_pop, 'gov_debt_gdp_pct': debt_gdp
         }])
         
-        pred_score = float(model.predict(input_data))
+        pred_score = float(model.predict(input_data)[0])
         future_preds.append({"year": yr, "predicted_score": pred_score})
         
         lag2_gdp = gdp_input
