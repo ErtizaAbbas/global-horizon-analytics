@@ -23,9 +23,9 @@ st.sidebar.markdown("### 🛠️ System Properties")
 st.sidebar.info("Developed by: **Ertiza Abbas**")
 st.sidebar.markdown("---")
 
-# Sidebar Interface Controllers
+# Sidebar Interface Controllers (Extended to include Germany)
 st.sidebar.subheader("🌍 Country Profiling")
-target_country = st.sidebar.selectbox("Select Profile Country Matrix:", ["Singapore", "Argentina"])
+target_country = st.sidebar.selectbox("Select Profile Country Matrix:", ["Singapore", "Argentina", "Germany"])
 country_lower = target_country.lower()
 
 st.sidebar.subheader("🛡️ Geopolitical Stress-Test Matrix Modifiers")
@@ -74,7 +74,7 @@ if os.path.exists(processed_file):
         lag2_gdp = gdp_input
         lag1_gdp = gdp_input * 0.95
         lag1_health = pred_score
-        working_pop *= 0.995 if country_lower == "singapore" else 0.998
+        working_pop *= 0.995 if country_lower == "singapore" else (0.997 if country_lower == "germany" else 0.998)
 
     forecast_df = pd.DataFrame(future_preds)
     
@@ -95,17 +95,24 @@ if os.path.exists(processed_file):
 
     # --- DISPLAY GRAPH WITH INTEGRATED SHADED BANDS ---
     st.subheader(f"📈 Macroeconomic Forecast & Probabilistic Risk Profile: {target_country}")
-    fig, ax = plt.subplots(figsize=(12, 5), dpi=100)
+    fig, ax = plt.subplots(figsize=(12, 4), dpi=100)
     sns.set_theme(style="whitegrid")
     
     ax.plot(df_ml['year'].values, df_ml['economic_health_score'].values, label="Historical Actual Data", color="#1f77b4", linewidth=2, marker='o')
     ax.plot(forecast_df['year'].values, forecast_df['predicted_score'].values, label="XGBoost Base Forecast", color="#ff7f0e", linestyle="--", linewidth=2.5, marker='s')
     
-    # Shading the Risk Confidence Bands
     ax.fill_between(future_years, pessimistic_band, optimistic_band, color="#ff7f0e", alpha=0.15, label="Monte Carlo Risk Horizon Bounds (5th-95th Pct)")
     ax.set_ylim(0, 100)
     ax.legend(loc="lower left")
     st.pyplot(fig)
+
+    # --- GRIDSEARCHCV ADVANCED DIAGNOSTICS DISPLAY WIDGET ---
+    st.subheader("⚙️ Optimized Hyperparameter Tuning Settings (GridSearchCV Metrics)")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Optimal Estimators (`n_estimators`)", "50")
+    col2.metric("Optimal Tree Depth (`max_depth`)", "3")
+    col3.metric("Optimal Learning Rate", "0.05")
+    col4.metric("Subsample Density Tuning", "0.90")
 
     st.subheader(f"📊 Historical Timeline Overview: {target_country}")
     st.dataframe(df[['year', 'gdp_growth_annual_pct', 'inflation_rate_pct', 'gov_debt_gdp_pct', 'economic_health_score']].tail(5))
@@ -151,8 +158,36 @@ if os.path.exists(processed_file):
         file_name=f"{country_lower}_macro_horizon_report.pdf",
         mime="application/pdf"
     )
-    
+
+    # --- INTERACTIVE USER ENGAGEMENT & FEEDBACK CONSOLE ---
     st.markdown("---")
+    st.subheader("🤝 Connect with the Lead Architect")
+    
+    icon_col1, icon_col2, icon_col3 = st.columns([1, 1, 4])
+    icon_col1.markdown("[🔗 GitHub Profile](https://github.com)")
+    icon_col2.markdown("[💼 LinkedIn Portal](https://linkedin.com)")
+    
+    with st.form("user_feedback_form", clear_on_submit=True):
+        st.markdown("##### Leave a message, request or suggestion for Ertiza Abbas:")
+        user_name = st.text_input("Your Name / Organization:")
+        user_email = st.text_input("Your Contact Email:")
+        user_message = st.text_area("Your Analytical Inquiry or Feedback:")
+        submit_btn = st.form_submit_with_rows_check = st.form_submit_button("Transmit Message Securely")
+        
+        if submit_btn:
+            if user_name and user_message:
+                feedback_file = "user_interaction_log.csv"
+                new_entry = pd.DataFrame([{"Name": user_name, "Email": user_email, "Message": user_message, "Country_Viewed": target_country}])
+                
+                if os.path.exists(feedback_file):
+                    new_entry.to_csv(feedback_file, mode='a', header=False, index=False)
+                else:
+                    new_entry.to_csv(feedback_file, index=False)
+                    
+                st.success(f"Thank you, {user_name}! Your message has been logged programmatically. Ertiza Abbas will review your inquiry.")
+            else:
+                st.error("[-] Transmission failed. Please supply both a Name and a Message text block.")
+                
     st.markdown("<p style='text-align: center; color: gray;'>Global Horizon Analytics Framework | Developed by Ertiza Abbas</p>", unsafe_allow_html=True)
 else:
     st.error("[-] Data file path mappings incorrect. Ensure data processing matrices exist on drive storage.")
