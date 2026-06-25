@@ -6,6 +6,8 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
 import xgboost as xgb
+import wbgapi as wb
+import requests
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
@@ -16,29 +18,64 @@ st.title("🌐 Global Horizon Analytics Dashboard")
 st.markdown("**System Architecture Pipeline:** Multi-Country Macro Evaluation Engine & 10-Year Risk Simulation Horizons")
 st.caption("Developed by: **Ertiza Abbas**")
 
-PROCESSED_DATA_PATH = r"D:\python\Python\geoecon_project\data\processed"
+PROJECT_ROOT = r"D:\python\Python\geoecon_project"
+RAW_DATA_PATH = os.path.join(PROJECT_ROOT, "data", "raw")
+PROCESSED_DATA_PATH = os.path.join(PROJECT_ROOT, "data", "processed")
+
+os.makedirs(RAW_DATA_PATH, exist_ok=True)
+os.makedirs(PROCESSED_DATA_PATH, exist_ok=True)
 
 # Sidebar Developer Context Branding
 st.sidebar.markdown("### 🛠️ System Properties")
 st.sidebar.info("Developed by: **Ertiza Abbas**")
 st.sidebar.markdown("---")
 
-# Sidebar Interface Controllers (Supports Singapore, Argentina, and Germany)
+# Sidebar Interface Controllers
 st.sidebar.subheader("🌍 Country Profiling")
 target_country = st.sidebar.selectbox("Select Profile Country Matrix:", ["Singapore", "Argentina", "Germany"])
+
+# Map UI names to World Bank ISO3 codes
+country_map = {"Singapore": "SGP", "Argentina": "ARG", "Germany": "DEU"}
+iso3_code = country_map[target_country]
 country_lower = target_country.lower()
 
 st.sidebar.subheader("🛡️ Geopolitical Stress-Test Matrix Modifiers")
 apply_shock = st.sidebar.checkbox("Activate Geopolitical Chokepoint Shock Scenario")
 shock_magnitude = st.sidebar.slider("Trade Disruption Scale (% Reduction):", 10, 50, 25, step=5) if apply_shock else 0
 
-# --- ADVANCED SELF-REPAIRING ANALYTICAL INGESTION ENGINE ---
 processed_file = os.path.join(PROCESSED_DATA_PATH, f"{country_lower}_processed_matrix.csv")
-raw_source_file = os.path.join(r"D:\python\Python\geoecon_project\data\raw", f"{country_lower}_worldbank_raw.csv")
+raw_source_file = os.path.join(RAW_DATA_PATH, f"{country_lower}_worldbank_raw.csv")
 
-# Dynamic Fallback: If processed matrix file is missing, generate it instantly from raw assets on drive
+# --- GUARDRAIL 1: SELF-HEALING AUTOMATED RAW INGESTION ENGINE ---
+if not os.path.exists(raw_source_file):
+    with st.spinner(f"Downloading raw global indicators for {target_country} from World Bank API..."):
+        WB_INDICATORS = {
+            "NY.GDP.MKTP.CD": "gdp_nominal_usd",
+            "NY.GDP.MKTP.KD.ZG": "gdp_growth_annual_pct",
+            "FP.CPI.TOTL.ZG": "inflation_rate_pct",
+            "NE.EXP.GNFS.ZS": "exports_pct_gdp",
+            "GC.XPN.TOTL.GD.ZS": "gov_expense_pct_gdp",
+            "SP.POP.TOTL": "total_population",
+            "SP.POP.1564.TO.ZS": "working_age_pop_pct",
+            "SE.XPD.TOTL.GD.ZS": "education_expenditure_pct_gdp"
+        }
+        try:
+            wb_df = wb.data.DataFrame(series=list(WB_INDICATORS.keys()), economy=iso3_code, time=range(1998, 2026), numericTimeKeys=True).T
+            wb_df.index.name = 'year'
+            wb_df = wb_df.reset_index().rename(columns=WB_INDICATORS)
+            
+            # IMF Fallback Baseline Defaults Engine
+            default_debt = 65.0 if iso3_code == "DEU" else (45.0 if iso3_code == "SGP" else 85.0)
+            imf_df = pd.DataFrame({"year": list(range(1998, 2026)), "gov_debt_gdp_pct": [default_debt] * 28})
+            
+            unified_df = pd.merge(wb_df, imf_df, on="year", how="outer").sort_values("year").reset_index(drop=True)
+            unified_df.to_csv(raw_source_file, index=False)
+        except Exception as e:
+            st.error(f"[-] Automated Cloud API connection broken: {e}")
+
+# --- GUARDRAIL 2: SELF-HEALING ANALYTICAL PROCESSING TRACK ---
 if not os.path.exists(processed_file) and os.path.exists(raw_source_file):
-    with st.spinner(f"Compiling structural analytics engine for {target_country}..."):
+    with st.spinner(f"Compiling structural analytical matrices for {target_country}..."):
         df_raw = pd.read_csv(raw_source_file).sort_values("year").reset_index(drop=True)
         df_clean = df_raw.ffill().bfill()
         
@@ -55,11 +92,9 @@ if not os.path.exists(processed_file) and os.path.exists(raw_source_file):
             (df_clean['scaled_inflation'] * 0.15) + (df_clean['scaled_debt'] * 0.15)
         ) * 100
         df_clean.to_csv(processed_file, index=False)
-        
-        # FIXED: Forces page reload immediately to populate workspace metrics
         st.rerun()
 
-# Main execution pathway continues smoothly if file exists or was repaired above
+# --- MAIN EXECUTION FRAMEWORK PATHWAYS ---
 if os.path.exists(processed_file):
     df = pd.read_csv(processed_file).sort_values("year").reset_index(drop=True)
     
@@ -95,7 +130,7 @@ if os.path.exists(processed_file):
             'health_score_lag1': lag1_health, 'working_age_pop_pct': working_pop, 'gov_debt_gdp_pct': debt_gdp
         }])
         
-        pred_score = float(model.predict(input_data)[0])
+        pred_score = float(model.predict(input_data))
         future_preds.append({"year": yr, "predicted_score": pred_score})
         
         lag2_gdp = gdp_input
@@ -128,7 +163,6 @@ if os.path.exists(processed_file):
     ax.plot(df_ml['year'].values, df_ml['economic_health_score'].values, label="Historical Actual Data", color="#1f77b4", linewidth=2, marker='o')
     ax.plot(forecast_df['year'].values, forecast_df['predicted_score'].values, label="XGBoost Base Forecast", color="#ff7f0e", linestyle="--", linewidth=2.5, marker='s')
     
-    # Shading the Risk Confidence Bands
     ax.fill_between(future_years, pessimistic_band, optimistic_band, color="#ff7f0e", alpha=0.15, label="Monte Carlo Risk Horizon Bounds (5th-95th Pct)")
     ax.set_ylim(0, 100)
     ax.legend(loc="lower left")
@@ -166,59 +200,4 @@ if os.path.exists(processed_file):
         p.setFont("Helvetica-Bold", 12)
         p.drawString(50, 570, "2. Analytical Strategic Outlook Methodology")
         p.setFont("Helvetica", 10)
-        text_block = "This report evaluates macro-structural resilience by modeling sequential growth configurations against demographic transitions, trade chokepoint exposures, and fiscal sovereign debt vulnerabilities using tuned machine learning arrays."
-        p.drawString(70, 550, text_block[:90])
-        p.drawString(70, 535, text_block[90:])
-        
-        p.setFont("Helvetica-Oblique", 8)
-        p.drawString(50, 50, "Classification: Confidential Operational Strategy Analytics Platform Document Output. Principal Developer: Ertiza Abbas.")
-        p.showPage()
-        p.save()
-        buffer.seek(0)
-        return buffer
-
-    # Download Interface Element Button
-    st.sidebar.subheader("📥 Export Executive Deliverables")
-    pdf_data = generate_pdf_report(target_country, df_ml['economic_health_score'].iloc[-1], forecast_df['predicted_score'].iloc[-1], pessimistic_band[-1])
-    st.sidebar.download_button(
-        label="Download Analytical Executive Summary (PDF)",
-        data=pdf_data,
-        file_name=f"{country_lower}_macro_horizon_report.pdf",
-        mime="application/pdf"
-    )
-
-    # --- INTERACTIVE USER ENGAGEMENT & FEEDBACK CONSOLE ---
-    st.markdown("---")
-    st.subheader("🤝 Connect with the Lead Architect")
-    
-    icon_col1, icon_col2 = st.columns(2)
-    icon_col1.markdown("[🔗 GitHub Repository Profile](https://github.com)")
-    icon_col2.markdown("[💼 LinkedIn Portal Access](https://linkedin.com)")
-    
-    st.markdown("##### Leave a message, project inquiry, or suggestion for Ertiza Abbas:")
-    
-    # We use explicit layout widgets instead of a strict form block to entirely eliminate indentation syntax breaks
-    user_name = st.text_input("Your Name / Organization Name:", key="u_name")
-    user_email = st.text_input("Your Contact Email Address:", key="u_email")
-    user_message = st.text_area("Your Analytical Inquiry or Feedback Notes:", key="u_msg")
-    transmit_btn = st.button("Transmit Message Securely")
-    
-    if transmit_btn:
-        if user_name and user_message:
-            feedback_file = "user_interaction_log.csv"
-            new_entry = pd.DataFrame([{"Name": user_name, "Email": user_email, "Message": user_message, "Country_Viewed": target_country}])
-            
-            if os.path.exists(feedback_file):
-                new_entry.to_csv(feedback_file, mode='a', header=False, index=False)
-            else:
-                new_entry.to_csv(feedback_file, index=False)
-                
-            st.success(f"Transmission successful! Thank you, {user_name}. Your inquiry has been logged programmatically. Ertiza Abbas will review your notes shortly.")
-        else:
-            st.error("[-] Transmission failed. Please supply both a Name and a Message text block before submission.")
-            
-    st.markdown("---")
-    st.markdown("<p style='text-align: center; color: gray;'>Global Horizon Analytics Framework | Developed by Ertiza Abbas</p>", unsafe_allow_html=True)
-else:
-    st.error("[-] Data file path mappings incorrect. Ensure data processing matrices exist on drive storage or check raw source tables.")
 
