@@ -23,7 +23,7 @@ st.sidebar.markdown("### 🛠️ System Properties")
 st.sidebar.info("Developed by: **Ertiza Abbas**")
 st.sidebar.markdown("---")
 
-# Sidebar Interface Controllers (Extended to include Germany)
+# Sidebar Interface Controllers (Supports Singapore, Argentina, and Germany)
 st.sidebar.subheader("🌍 Country Profiling")
 target_country = st.sidebar.selectbox("Select Profile Country Matrix:", ["Singapore", "Argentina", "Germany"])
 country_lower = target_country.lower()
@@ -32,8 +32,31 @@ st.sidebar.subheader("🛡️ Geopolitical Stress-Test Matrix Modifiers")
 apply_shock = st.sidebar.checkbox("Activate Geopolitical Chokepoint Shock Scenario")
 shock_magnitude = st.sidebar.slider("Trade Disruption Scale (% Reduction):", 10, 50, 25, step=5) if apply_shock else 0
 
+# --- ADVANCED SELF-REPAIRING ANALYTICAL INGESTION ENGINE ---
 processed_file = os.path.join(PROCESSED_DATA_PATH, f"{country_lower}_processed_matrix.csv")
+raw_source_file = os.path.join(r"D:\python\Python\geoecon_project\data\raw", f"{country_lower}_worldbank_raw.csv")
 
+# Dynamic Fallback: If processed matrix file is missing, generate it instantly from raw assets on drive
+if not os.path.exists(processed_file) and os.path.exists(raw_source_file):
+    with st.spinner(f"Compiling structural analytics engine for {target_country}..."):
+        df_raw = pd.read_csv(raw_source_file).sort_values("year").reset_index(drop=True)
+        df_clean = df_raw.ffill().bfill()
+        
+        def min_max_scale_local(series):
+            return (series - series.min()) / (series.max() - series.min()) if (series.max() - series.min()) != 0 else 0
+            
+        df_clean['scaled_growth'] = min_max_scale_local(df_clean['gdp_growth_annual_pct'])
+        df_clean['scaled_exports'] = min_max_scale_local(df_clean['exports_pct_gdp'])
+        df_clean['scaled_inflation'] = 1 - min_max_scale_local(df_clean['inflation_rate_pct'])
+        df_clean['scaled_debt'] = 1 - min_max_scale_local(df_clean['gov_debt_gdp_pct'])
+        
+        df_clean['economic_health_score'] = (
+            (df_clean['scaled_growth'] * 0.35) + (df_clean['scaled_exports'] * 0.35) + 
+            (df_clean['scaled_inflation'] * 0.15) + (df_clean['scaled_debt'] * 0.15)
+        ) * 100
+        df_clean.to_csv(processed_file, index=False)
+
+# Main execution pathway continues smoothly if file exists or was repaired above
 if os.path.exists(processed_file):
     df = pd.read_csv(processed_file).sort_values("year").reset_index(drop=True)
     
@@ -68,6 +91,8 @@ if os.path.exists(processed_file):
             'year': yr, 'gdp_growth_lag1': gdp_input, 'gdp_growth_lag2': lag2_gdp,
             'health_score_lag1': lag1_health, 'working_age_pop_pct': working_pop, 'gov_debt_gdp_pct': debt_gdp
         }])
+        
+        # FIXED: Added array subscript element lookup [0] to extract float scalar out of array mapping
         pred_score = float(model.predict(input_data)[0])
         future_preds.append({"year": yr, "predicted_score": pred_score})
         
@@ -101,6 +126,7 @@ if os.path.exists(processed_file):
     ax.plot(df_ml['year'].values, df_ml['economic_health_score'].values, label="Historical Actual Data", color="#1f77b4", linewidth=2, marker='o')
     ax.plot(forecast_df['year'].values, forecast_df['predicted_score'].values, label="XGBoost Base Forecast", color="#ff7f0e", linestyle="--", linewidth=2.5, marker='s')
     
+    # Shading the Risk Confidence Bands
     ax.fill_between(future_years, pessimistic_band, optimistic_band, color="#ff7f0e", alpha=0.15, label="Monte Carlo Risk Horizon Bounds (5th-95th Pct)")
     ax.set_ylim(0, 100)
     ax.legend(loc="lower left")
@@ -163,31 +189,9 @@ if os.path.exists(processed_file):
     st.markdown("---")
     st.subheader("🤝 Connect with the Lead Architect")
     
-    icon_col1, icon_col2, icon_col3 = st.columns([1, 1, 4])
-    icon_col1.markdown("[🔗 GitHub Profile](https://github.com)")
-    icon_col2.markdown("[💼 LinkedIn Portal](https://linkedin.com)")
+    icon_col1, icon_col2 = st.columns(2)
+    icon_col1.markdown("[🔗 GitHub Repository Profile](https://github.com)")
+    icon_col2.markdown("[💼 LinkedIn Portal Access](https://linkedin.com)")
     
     with st.form("user_feedback_form", clear_on_submit=True):
-        st.markdown("##### Leave a message, request or suggestion for Ertiza Abbas:")
-        user_name = st.text_input("Your Name / Organization:")
-        user_email = st.text_input("Your Contact Email:")
-        user_message = st.text_area("Your Analytical Inquiry or Feedback:")
-        submit_btn = st.form_submit_with_rows_check = st.form_submit_button("Transmit Message Securely")
-        
-        if submit_btn:
-            if user_name and user_message:
-                feedback_file = "user_interaction_log.csv"
-                new_entry = pd.DataFrame([{"Name": user_name, "Email": user_email, "Message": user_message, "Country_Viewed": target_country}])
-                
-                if os.path.exists(feedback_file):
-                    new_entry.to_csv(feedback_file, mode='a', header=False, index=False)
-                else:
-                    new_entry.to_csv(feedback_file, index=False)
-                    
-                st.success(f"Thank you, {user_name}! Your message has been logged programmatically. Ertiza Abbas will review your inquiry.")
-            else:
-                st.error("[-] Transmission failed. Please supply both a Name and a Message text block.")
-                
-    st.markdown("<p style='text-align: center; color: gray;'>Global Horizon Analytics Framework | Developed by Ertiza Abbas</p>", unsafe_allow_html=True)
-else:
-    st.error("[-] Data file path mappings incorrect. Ensure data processing matrices exist on drive storage.")
+
